@@ -11,6 +11,6 @@ public:
 
 	void onEventMatchEnded(string eventName);
 
-	string matchesFilePath = "./bakkesmod/data/StatisticallySpeaking-Matches.csv";
+	map<string, string> matchValues;
 	ofstream matchesFile;
 };

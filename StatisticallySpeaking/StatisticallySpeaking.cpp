@@ -1,6 +1,6 @@
 #include "StatisticallySpeaking.h"
 
-BAKKESMOD_PLUGIN(StatisticallySpeaking, "Statistically Speaking", "1.0", 0)
+BAKKESMOD_PLUGIN(StatisticallySpeaking, "Statistically Speaking", "1.1", 0)
 
 void StatisticallySpeaking::onLoad()
 {
@@ -29,7 +29,7 @@ void StatisticallySpeaking::onEventMatchEnded(string eventName)
 						TeamWrapper matchWinner = server.GetMatchWinner();
 
 						if (!matchWinner.IsNull()) {
-							map<string, string> matchValues;
+							matchValues.clear();
 
 							time_t now = time(NULL);
 							tm nowInfo;
@@ -42,7 +42,9 @@ void StatisticallySpeaking::onEventMatchEnded(string eventName)
 
 							matchValues["Win"] = to_string((localPrimaryPlayer.GetTeamNum() == matchWinner.GetTeamNum()));
 
-							matchValues["Playlist ID"] = to_string(playlist.GetPlaylistId());
+							int playlistId = playlist.GetPlaylistId();
+
+							matchValues["Playlist ID"] = to_string(playlistId);
 							matchValues["Playlist"] = playlist.GetTitle().ToString();
 							matchValues["Ranked"] = to_string(playlist.GetbRanked());
 
@@ -54,12 +56,38 @@ void StatisticallySpeaking::onEventMatchEnded(string eventName)
 							matchValues["Score"] = to_string(localPrimaryPlayer.GetMatchScore());
 							matchValues["MVP"] = to_string(localPrimaryPlayer.GetbMatchMVP());
 
-							if (!ifstream(matchesFilePath)) {
+							SteamID steamIdentification;
+							steamIdentification.ID = gameWrapper->GetSteamID();
+
+							gameWrapper->SetTimeout([this, steamIdentification, playlistId](GameWrapper* gameWrapper) {
+								matchValues["MMR"] = to_string((int)gameWrapper->GetMMRWrapper().GetPlayerMMR(steamIdentification, playlistId));
+
+								string matchesFilePath = "./bakkesmod/data/StatisticallySpeaking-Matches-" + to_string(steamIdentification.ID) + ".csv";
+
+								if (!ifstream(matchesFilePath)) {
+									matchesFile.open(matchesFilePath, ios_base::app);
+
+									unsigned int idx = 1;
+									for (const pair<string, string>& matchValue : matchValues) {
+										matchesFile << matchValue.first;
+
+										if (idx < matchValues.size()) {
+											matchesFile << ",";
+										}
+
+										idx++;
+									}
+
+									matchesFile << endl;
+
+									matchesFile.close();
+								}
+
 								matchesFile.open(matchesFilePath, ios_base::app);
 
 								unsigned int idx = 1;
 								for (const pair<string, string>& matchValue : matchValues) {
-									matchesFile << matchValue.first;
+									matchesFile << matchValue.second;
 
 									if (idx < matchValues.size()) {
 										matchesFile << ",";
@@ -71,24 +99,7 @@ void StatisticallySpeaking::onEventMatchEnded(string eventName)
 								matchesFile << endl;
 
 								matchesFile.close();
-							}
-
-							matchesFile.open(matchesFilePath, ios_base::app);
-
-							unsigned int idx = 1;
-							for (const pair<string, string>& matchValue : matchValues) {
-								matchesFile << matchValue.second;
-
-								if (idx < matchValues.size()) {
-									matchesFile << ",";
-								}
-
-								idx++;
-							}
-
-							matchesFile << endl;
-
-							matchesFile.close();
+							}, 6.f);
 						}
 					}
 				}
