@@ -1,18 +1,15 @@
 #include "StatisticallySpeaking.h"
 
-BAKKESMOD_PLUGIN(StatisticallySpeaking, "Statistically Speaking", "1.1", 0)
+BAKKESMOD_PLUGIN(StatisticallySpeaking, "Statistically Speaking", "1.2", 0)
 
-void StatisticallySpeaking::onLoad()
-{
+void StatisticallySpeaking::onLoad(){
 	gameWrapper->HookEvent("Function TAGame.GameEvent_Soccar_TA.EventMatchEnded", bind(&StatisticallySpeaking::onEventMatchEnded, this, placeholders::_1));
 }
 
-void StatisticallySpeaking::onUnload()
-{
+void StatisticallySpeaking::onUnload(){
 }
 
-void StatisticallySpeaking::onEventMatchEnded(string eventName)
-{
+void StatisticallySpeaking::onEventMatchEnded(string eventName){
 	if (gameWrapper->IsInOnlineGame()) {
 		ServerWrapper server = gameWrapper->GetOnlineGame();
 
@@ -56,54 +53,57 @@ void StatisticallySpeaking::onEventMatchEnded(string eventName)
 							matchValues["Score"] = to_string(localPrimaryPlayer.GetMatchScore());
 							matchValues["MVP"] = to_string(localPrimaryPlayer.GetbMatchMVP());
 
-							SteamID steamIdentification;
-							steamIdentification.ID = gameWrapper->GetSteamID();
-
-							gameWrapper->SetTimeout([this, steamIdentification, playlistId](GameWrapper* gameWrapper) {
-								matchValues["MMR"] = to_string((int)gameWrapper->GetMMRWrapper().GetPlayerMMR(steamIdentification, playlistId));
-
-								string matchesFilePath = "./bakkesmod/data/StatisticallySpeaking-Matches-" + to_string(steamIdentification.ID) + ".csv";
-
-								if (!ifstream(matchesFilePath)) {
-									matchesFile.open(matchesFilePath, ios_base::app);
-
-									unsigned int idx = 1;
-									for (const pair<string, string>& matchValue : matchValues) {
-										matchesFile << matchValue.first;
-
-										if (idx < matchValues.size()) {
-											matchesFile << ",";
-										}
-
-										idx++;
-									}
-
-									matchesFile << endl;
-
-									matchesFile.close();
-								}
-
-								matchesFile.open(matchesFilePath, ios_base::app);
-
-								unsigned int idx = 1;
-								for (const pair<string, string>& matchValue : matchValues) {
-									matchesFile << matchValue.second;
-
-									if (idx < matchValues.size()) {
-										matchesFile << ",";
-									}
-
-									idx++;
-								}
-
-								matchesFile << endl;
-
-								matchesFile.close();
-							}, 6.f);
+							gameWrapper->SetTimeout([this, playlistId](GameWrapper* gameWrapper) {
+								getMMRAndSaveFile(playlistId);
+								}, 6.0f);
 						}
 					}
 				}
 			}
 		}
 	}
+}
+
+void StatisticallySpeaking::getMMRAndSaveFile(int playlistId) {
+	auto playerId = gameWrapper->GetUniqueID();
+
+	if (gameWrapper->GetMMRWrapper().IsSynced(playerId, playlistId) &&
+		!gameWrapper->GetMMRWrapper().IsSyncing(playerId)){
+
+		auto matchesFilePath = gameWrapper->GetDataFolder() / ("StatisticallySpeaking-Matches-" + playerId.str() + ".csv");
+
+		matchValues["MMR"] = to_string((int)gameWrapper->GetMMRWrapper().GetPlayerMMR(playerId, playlistId));
+
+		if (!ifstream(matchesFilePath)) {
+			saveCSVFile(matchesFilePath, true);
+		}
+
+		saveCSVFile(matchesFilePath);
+	}
+	else {
+		gameWrapper->SetTimeout([this, playlistId](GameWrapper* gameWrapper) {
+			getMMRAndSaveFile(playlistId);
+			}, 1.0f);
+	}
+
+}
+
+void StatisticallySpeaking::saveCSVFile(filesystem::path matchesFilePath, bool saveHeader){
+	matchesFile.open(matchesFilePath, ios_base::app);
+
+	unsigned int idx = 1;
+
+	for (const pair<string, string>& matchValue : matchValues) {
+		matchesFile << (saveHeader ? matchValue.first : matchValue.second);
+
+		if (idx < matchValues.size()) {
+			matchesFile << ",";
+		}
+
+		idx++;
+	}
+
+	matchesFile << endl;
+
+	matchesFile.close();
 }
