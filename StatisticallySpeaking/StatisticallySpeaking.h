@@ -15,6 +15,7 @@ private:
 	void getMMRAndSaveFile(int playlistId);
 	void saveCSVFile(filesystem::path matchesFilePath, bool saveHeader = false);
 
+	filesystem::path matchesFilePath;
 	map<string, string> matchValues;
 	ofstream matchesFile;
 };

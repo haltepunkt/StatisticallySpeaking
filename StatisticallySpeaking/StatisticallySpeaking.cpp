@@ -3,6 +3,8 @@
 BAKKESMOD_PLUGIN(StatisticallySpeaking, "Statistically Speaking", "1.2", 0)
 
 void StatisticallySpeaking::onLoad(){
+	auto playerId = gameWrapper->GetUniqueID();
+	matchesFilePath = gameWrapper->GetDataFolder() / ("StatisticallySpeaking-Matches-" + playerId.str() + ".csv");
 	gameWrapper->HookEvent("Function TAGame.GameEvent_Soccar_TA.EventMatchEnded", bind(&StatisticallySpeaking::onEventMatchEnded, this, placeholders::_1));
 }
 
@@ -18,6 +20,7 @@ void StatisticallySpeaking::onEventMatchEnded(string eventName){
 
 			if (!playlist.IsLanMatch() && !playlist.IsPrivateMatch()) {
 				PlayerControllerWrapper localPrimaryPlayerController = server.GetLocalPrimaryPlayer();
+
 
 				if (!localPrimaryPlayerController.IsNull()) {
 					PriWrapper localPrimaryPlayer = localPrimaryPlayerController.GetPRI();
@@ -69,9 +72,6 @@ void StatisticallySpeaking::getMMRAndSaveFile(int playlistId) {
 
 	if (gameWrapper->GetMMRWrapper().IsSynced(playerId, playlistId) &&
 		!gameWrapper->GetMMRWrapper().IsSyncing(playerId)){
-
-		auto matchesFilePath = gameWrapper->GetDataFolder() / ("StatisticallySpeaking-Matches-" + playerId.str() + ".csv");
-
 		matchValues["MMR"] = to_string((int)gameWrapper->GetMMRWrapper().GetPlayerMMR(playerId, playlistId));
 
 		if (!ifstream(matchesFilePath)) {
